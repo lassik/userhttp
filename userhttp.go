@@ -43,7 +43,7 @@ var dirListTemplate = templateFromString(`
 <!doctype html>
 <html>
   <head>
-    <title>Directory list</title>
+    <title>Directory /{{.RelPath}}</title>
   </head>
   <body>
     <h1>Directory /{{.RelPath}}</h1>
