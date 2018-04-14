@@ -105,6 +105,14 @@ func respondWithRedirect(req *http.Request, newLocation string) {
 	}
 }
 
+func requireGetMethod(req *http.Request) bool {
+	if req.Method == "GET" || req.Method == "HEAD" {
+		return true
+	}
+	respondWithError(req, http.StatusMethodNotAllowed)
+	return false
+}
+
 type stdoutResponseWriter struct {
 	req        *http.Request
 	statusCode int
@@ -133,6 +141,9 @@ func (rw stdoutResponseWriter) Write(body []byte) (int, error) {
 }
 
 func serveStaticFile(req *http.Request, relPath string) {
+	if !requireGetMethod(req) {
+		return
+	}
 	body, err := ioutil.ReadFile(relPath)
 	header := make(http.Header, 0)
 	if type_ := mime.TypeByExtension(path.Ext(relPath)); type_ != "" {
@@ -152,6 +163,9 @@ func serveCgiScript(req *http.Request, relPath string) {
 }
 
 func serveDirList(req *http.Request, relPath string) {
+	if !requireGetMethod(req) {
+		return
+	}
 	dir, err := os.Open(relPath)
 	check(err)
 	if relPath == "." {
