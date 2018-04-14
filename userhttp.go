@@ -197,7 +197,6 @@ func serveDir(req *http.Request, relPath string) {
 }
 
 func main() {
-	os.Chdir(".config/userhttp")
 	reader := bufio.NewReader(os.Stdin)
 	req, err := http.ReadRequest(reader)
 	check(err)
