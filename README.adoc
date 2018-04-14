@@ -1,14 +1,15 @@
-userhttp
---------
+# webhere
 
 Allows local users on Unix systems (Linux, BSD, MacOS) to easily run
 their own web server for personal use on the same computer.
+
+## Use with privatetcp
 
 The idea is that root runs a https://github.com/lassik/privatetcp[TCP
 multiplexer] that listens on port 80 (HTTP). Whenever a connection is
 made to that port, the multiplexer asks the OS which local user
 initiated the TCP connection. The multiplexer then changes to that
-user account and runs `userhttp` to serve HTTP content as that user
+user account and runs `webhere` to serve HTTP content as that user
 from that user's home directory. So all users connect to the same port
 80 (HTTP) but each users sees a completely personalized view of the
 server contents, controlled completely by themselves while securely
