@@ -75,9 +75,7 @@ func respond(req *http.Request, statusCode int, header http.Header, body []byte)
 		Request:       req,
 		Header:        header,
 	}
-	buf := bytes.NewBuffer(nil)
-	resp.Write(buf)
-	fmt.Print(buf)
+	resp.Write(os.Stdout)
 }
 
 func respondWithError(req *http.Request, statusCode int) {
