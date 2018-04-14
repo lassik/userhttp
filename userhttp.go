@@ -9,6 +9,7 @@ import (
 	"log"
 	"mime"
 	"net/http"
+	"net/http/cgi"
 	"os"
 	"path"
 	"strings"
@@ -104,6 +105,33 @@ func respondWithRedirect(req *http.Request, newLocation string) {
 	}
 }
 
+type stdoutResponseWriter struct {
+	req        *http.Request
+	statusCode int
+	header     http.Header
+}
+
+func makeStdoutResponseWriter(req *http.Request) stdoutResponseWriter {
+	return stdoutResponseWriter{
+		req:        req,
+		statusCode: http.StatusOK,
+		header:     make(http.Header),
+	}
+}
+
+func (rw stdoutResponseWriter) Header() http.Header {
+	return rw.header
+}
+
+func (rw stdoutResponseWriter) WriteHeader(statusCode int) {
+	rw.statusCode = statusCode
+}
+
+func (rw stdoutResponseWriter) Write(body []byte) (int, error) {
+	respond(rw.req, rw.statusCode, rw.header, body)
+	return len(body), nil
+}
+
 func serveStaticFile(req *http.Request, relPath string) {
 	body, err := ioutil.ReadFile(relPath)
 	header := make(http.Header, 0)
@@ -115,9 +143,12 @@ func serveStaticFile(req *http.Request, relPath string) {
 }
 
 func serveCgiScript(req *http.Request, relPath string) {
-	// https://tools.ietf.org/html/rfc3875
-	respond(req, http.StatusOK, make(http.Header, 0),
-		[]byte("Should run CGI script "+relPath))
+	os.Chdir(relPath)
+	handler := cgi.Handler{
+		Path:                "index.cgi",
+		PathLocationHandler: http.DefaultServeMux,
+	}
+	handler.ServeHTTP(makeStdoutResponseWriter(req), req)
 }
 
 func serveDirList(req *http.Request, relPath string) {
@@ -138,7 +169,6 @@ func serveDirList(req *http.Request, relPath string) {
 }
 
 func serveDir(req *http.Request, relPath string) {
-	//mode&os.ModePerm&1 != 0 // Execute bit is set
 	filename := path.Join(relPath, "index.cgi")
 	if _, err := os.Stat(filename); err == nil {
 		serveCgiScript(req, relPath)
