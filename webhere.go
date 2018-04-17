@@ -113,30 +113,22 @@ func requireGetMethod(req *http.Request) bool {
 	return false
 }
 
-type stdoutResponseWriter struct {
-	req        *http.Request
-	statusCode int
-	header     http.Header
-}
+var cgiStatusCode int = http.StatusOK
+var cgiHeader = make(http.Header)
+var cgiBody []byte
 
-func makeStdoutResponseWriter(req *http.Request) stdoutResponseWriter {
-	return stdoutResponseWriter{
-		req:        req,
-		statusCode: http.StatusOK,
-		header:     make(http.Header),
-	}
-}
+type stdoutResponseWriter struct{}
 
 func (rw stdoutResponseWriter) Header() http.Header {
-	return rw.header
+	return cgiHeader
 }
 
 func (rw stdoutResponseWriter) WriteHeader(statusCode int) {
-	rw.statusCode = statusCode
+	cgiStatusCode = statusCode
 }
 
 func (rw stdoutResponseWriter) Write(body []byte) (int, error) {
-	respond(rw.req, rw.statusCode, rw.header, body)
+	cgiBody = append(cgiBody, body...)
 	return len(body), nil
 }
 
@@ -159,7 +151,8 @@ func serveCgiScript(req *http.Request, relPath string) {
 		Path:                "index.cgi",
 		PathLocationHandler: http.DefaultServeMux,
 	}
-	handler.ServeHTTP(makeStdoutResponseWriter(req), req)
+	handler.ServeHTTP(stdoutResponseWriter{}, req)
+	respond(req, cgiStatusCode, cgiHeader, cgiBody)
 }
 
 func serveDirList(req *http.Request, relPath string) {
