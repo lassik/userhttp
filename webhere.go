@@ -132,19 +132,6 @@ func (rw stdoutResponseWriter) Write(body []byte) (int, error) {
 	return len(body), nil
 }
 
-func serveStaticFile(req *http.Request, relPath string) {
-	if !requireGetMethod(req) {
-		return
-	}
-	body, err := ioutil.ReadFile(relPath)
-	header := make(http.Header, 0)
-	if type_ := mime.TypeByExtension(path.Ext(relPath)); type_ != "" {
-		header.Set("Content-Type", type_)
-	}
-	check(err)
-	respond(req, http.StatusOK, header, body)
-}
-
 func serveCgiScript(req *http.Request, relPath string) {
 	os.Chdir(relPath)
 	handler := cgi.Handler{
@@ -187,6 +174,19 @@ func serveDir(req *http.Request, relPath string) {
 		return
 	}
 	serveDirList(req, relPath)
+}
+
+func serveStaticFile(req *http.Request, relPath string) {
+	if !requireGetMethod(req) {
+		return
+	}
+	body, err := ioutil.ReadFile(relPath)
+	header := make(http.Header, 0)
+	if type_ := mime.TypeByExtension(path.Ext(relPath)); type_ != "" {
+		header.Set("Content-Type", type_)
+	}
+	check(err)
+	respond(req, http.StatusOK, header, body)
 }
 
 func main() {
