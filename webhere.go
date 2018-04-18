@@ -117,17 +117,17 @@ var cgiStatusCode int = http.StatusOK
 var cgiHeader = make(http.Header)
 var cgiBody []byte
 
-type stdoutResponseWriter struct{}
+type cgiResponseWriter struct{}
 
-func (rw stdoutResponseWriter) Header() http.Header {
+func (rw cgiResponseWriter) Header() http.Header {
 	return cgiHeader
 }
 
-func (rw stdoutResponseWriter) WriteHeader(statusCode int) {
+func (rw cgiResponseWriter) WriteHeader(statusCode int) {
 	cgiStatusCode = statusCode
 }
 
-func (rw stdoutResponseWriter) Write(body []byte) (int, error) {
+func (rw cgiResponseWriter) Write(body []byte) (int, error) {
 	cgiBody = append(cgiBody, body...)
 	return len(body), nil
 }
@@ -138,7 +138,7 @@ func serveCgiScript(req *http.Request, relPath string) {
 		Path:                "index.cgi",
 		PathLocationHandler: http.DefaultServeMux,
 	}
-	handler.ServeHTTP(stdoutResponseWriter{}, req)
+	handler.ServeHTTP(cgiResponseWriter{}, req)
 	respond(req, cgiStatusCode, cgiHeader, cgiBody)
 }
 
