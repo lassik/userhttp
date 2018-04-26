@@ -217,6 +217,14 @@ func handleRequest(resp http.ResponseWriter, req *http.Request) {
 	}
 }
 
+type ourHandlerType struct{}
+
+var ourHandler ourHandlerType
+
+func (_ ourHandlerType) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
+	handleRequest(resp, req)
+}
+
 func serveStdinStdout() {
 	req, err := http.ReadRequest(bufio.NewReader(os.Stdin))
 	check(err)
@@ -226,26 +234,30 @@ func serveStdinStdout() {
 	writeResponseToStdout(req)
 }
 
-func listenAndServeUnix(addr string, handler http.Handler) error {
-	unixListener, err := net.Listen("unix", addr)
-	if err != nil {
-		return err
-	}
-	return http.Serve(unixListener, handler)
-}
-
 func main() {
 	var addr string
-	flag.StringVar(&addr, "b", "8080", "Bind address and port")
+	flag.StringVar(&addr, "b", "", "Bind address and port")
 	flag.Parse()
 	if addr == "-" {
 		serveStdinStdout()
-	} else {
-		http.HandleFunc("/", handleRequest)
-		if strings.Contains(addr, "/") {
-			check(listenAndServeUnix(addr, nil))
-		} else {
-			check(http.ListenAndServe(addr, nil))
-		}
+		return
 	}
+	var listener net.Listener
+	var err error
+	if strings.Contains(addr, "/") {
+		listener, err = net.Listen("unix", addr)
+	} else {
+		if (addr == "") || strings.HasPrefix(addr, ":") {
+			// By default, serve only on localhost instead
+			// of serving to the entire world.
+			addr = "127.0.0.1" + addr
+		}
+		if !strings.Contains(addr, ":") {
+			addr = addr + ":"
+		}
+		listener, err = net.Listen("tcp", addr)
+	}
+	check(err)
+	log.Print("Serving on ", listener.Addr())
+	check(http.Serve(listener, ourHandler))
 }
