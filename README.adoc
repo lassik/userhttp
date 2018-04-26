@@ -1,9 +1,33 @@
 # webhere
 
-Allows local users on Unix systems (Linux, BSD, MacOS) to easily run
-their own web server for personal use on the same computer.
+Serve the current directory over the web.
 
-## Use with privatetcp
+* Static files
+* Directory listings
+* `index.html`
+* `index.cgi` for CGI scripts
+
+## Serve only to local users on some open port
+
+    webhere
+
+## Serve only to local users on port 8080
+
+    webhere -b :8080
+
+## Serve to the public on port 8080
+
+    webhere -b 0:8080
+
+## Serve only to local users over a Unix-domain socket
+
+    webhere -b /tmp/MyWebServer
+
+## Read HTTP request from stdin and write response to stdout
+
+    webhere -b -
+
+## Serve only to yourself on port 80 with privatetcp
 
 The idea is that root runs a https://github.com/lassik/privatetcp[TCP
 multiplexer] that listens on port 80 (HTTP). Whenever a connection is
