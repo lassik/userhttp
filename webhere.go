@@ -139,12 +139,12 @@ func writeResponseToStdout(req *http.Request) {
 func serveCgiScript(resp http.ResponseWriter, req *http.Request, relPath string) {
 	abs, err := filepath.Abs(relPath)
 	check(err)
-	handler := cgi.Handler{
+	cgiHandler := cgi.Handler{
 		Path:                path.Join(abs, "index.cgi"),
 		Dir:                 abs,
 		PathLocationHandler: http.DefaultServeMux,
 	}
-	handler.ServeHTTP(resp, req)
+	cgiHandler.ServeHTTP(resp, req)
 }
 
 func serveDirList(resp http.ResponseWriter, req *http.Request, relPath string) {
