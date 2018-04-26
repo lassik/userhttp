@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"flag"
 	"fmt"
 	"html/template"
 	"io/ioutil"
@@ -12,6 +13,7 @@ import (
 	"net/http/cgi"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 )
 
@@ -63,53 +65,34 @@ func check(err error) {
 	}
 }
 
-func respond(req *http.Request, statusCode int, header http.Header, body []byte) {
-	status := fmt.Sprintf("%d %s", statusCode, http.StatusText(statusCode))
-	resp := &http.Response{
-		Status:        status,
-		StatusCode:    statusCode,
-		Proto:         "HTTP/1.1",
-		ProtoMajor:    1,
-		ProtoMinor:    1,
-		Body:          ioutil.NopCloser(bytes.NewReader(body)),
-		ContentLength: int64(len(body)),
-		Request:       req,
-		Header:        header,
-	}
-	resp.Write(os.Stdout)
-}
-
-func respondWithError(req *http.Request, statusCode int) {
+func respondWithError(resp http.ResponseWriter, req *http.Request, statusCode int) {
 	status := fmt.Sprintf("%d %s", statusCode, http.StatusText(statusCode))
 	buf := bytes.NewBuffer(nil)
 	check(errorTemplate.Execute(buf, status))
-	body := buf.Bytes()
-	header := make(http.Header, 0)
-	header.Set("Content-Type", "text/html; charset=utf-8")
-	respond(req, statusCode, header, body)
+	resp.Header().Set("Content-Type", "text/html; charset=utf-8")
+	resp.WriteHeader(statusCode)
+	resp.Write(buf.Bytes())
 }
 
-func respondWithRedirect(req *http.Request, newLocation string) {
-	header := make(http.Header, 0)
-	header.Set("Location", newLocation)
-	body := []byte{}
+func respondWithRedirect(resp http.ResponseWriter, req *http.Request, newLocation string) {
+	resp.Header().Set("Location", newLocation)
 	switch req.Method {
 	case "HEAD":
 		fallthrough
 	case "GET":
-		respond(req, http.StatusMovedPermanently, header, body)
+		resp.WriteHeader(http.StatusMovedPermanently)
 	case "POST":
-		respond(req, http.StatusPermanentRedirect, header, body)
+		resp.WriteHeader(http.StatusPermanentRedirect)
 	default:
-		respondWithError(req, http.StatusBadRequest)
+		resp.WriteHeader(http.StatusBadRequest)
 	}
 }
 
-func requireGetMethod(req *http.Request) bool {
+func requireGetMethod(resp http.ResponseWriter, req *http.Request) bool {
 	if req.Method == "GET" || req.Method == "HEAD" {
 		return true
 	}
-	respondWithError(req, http.StatusMethodNotAllowed)
+	resp.WriteHeader(http.StatusMethodNotAllowed)
 	return false
 }
 
@@ -132,18 +115,36 @@ func (rw stdoutResponseWriter) Write(body []byte) (int, error) {
 	return len(body), nil
 }
 
-func serveCgiScript(req *http.Request, relPath string) {
-	os.Chdir(relPath)
-	handler := cgi.Handler{
-		Path:                "index.cgi",
-		PathLocationHandler: http.DefaultServeMux,
+func writeResponseToStdout(req *http.Request) {
+	status := fmt.Sprintf("%d %s", responseStatusCode,
+		http.StatusText(responseStatusCode))
+	resp := http.Response{
+		Status:        status,
+		StatusCode:    responseStatusCode,
+		Proto:         "HTTP/1.1",
+		ProtoMajor:    1,
+		ProtoMinor:    1,
+		Body:          ioutil.NopCloser(bytes.NewReader(responseBody)),
+		ContentLength: int64(len(responseBody)),
+		Request:       req,
+		Header:        responseHeader,
 	}
-	handler.ServeHTTP(stdoutResponseWriter{}, req)
-	respond(req, responseStatusCode, responseHeader, responseBody)
+	resp.Write(os.Stdout)
 }
 
-func serveDirList(req *http.Request, relPath string) {
-	if !requireGetMethod(req) {
+func serveCgiScript(resp http.ResponseWriter, req *http.Request, relPath string) {
+	abs, err := filepath.Abs(relPath)
+	check(err)
+	handler := cgi.Handler{
+		Path:                path.Join(abs, "index.cgi"),
+		Dir:                 abs,
+		PathLocationHandler: http.DefaultServeMux,
+	}
+	handler.ServeHTTP(resp, req)
+}
+
+func serveDirList(resp http.ResponseWriter, req *http.Request, relPath string) {
+	if !requireGetMethod(resp, req) {
 		return
 	}
 	dir, err := os.Open(relPath)
@@ -157,36 +158,34 @@ func serveDirList(req *http.Request, relPath string) {
 	check(err)
 	buf := bytes.NewBuffer(nil)
 	check(dirListTemplate.Execute(buf, dirListVars{relPath, fileInfos}))
-	header := make(http.Header, 0)
-	header.Set("Content-Type", "text/html; charset=utf-8")
-	respond(req, http.StatusOK, header, buf.Bytes())
+	resp.Header().Set("Content-Type", "text/html; charset=utf-8")
+	resp.Write(buf.Bytes())
 }
 
-func serveDir(req *http.Request, relPath string) {
+func serveDir(resp http.ResponseWriter, req *http.Request, relPath string) {
 	filename := path.Join(relPath, "index.cgi")
 	if _, err := os.Stat(filename); err == nil {
-		serveCgiScript(req, relPath)
+		serveCgiScript(resp, req, relPath)
 		return
 	}
 	filename = path.Join(relPath, "index.html")
 	if _, err := os.Stat(filename); err == nil {
-		serveStaticFile(req, filename)
+		serveStaticFile(resp, req, filename)
 		return
 	}
-	serveDirList(req, relPath)
+	serveDirList(resp, req, relPath)
 }
 
-func serveStaticFile(req *http.Request, relPath string) {
-	if !requireGetMethod(req) {
+func serveStaticFile(resp http.ResponseWriter, req *http.Request, relPath string) {
+	if !requireGetMethod(resp, req) {
 		return
 	}
 	body, err := ioutil.ReadFile(relPath)
-	header := make(http.Header, 0)
 	if type_ := mime.TypeByExtension(path.Ext(relPath)); type_ != "" {
-		header.Set("Content-Type", type_)
+		resp.Header().Set("Content-Type", type_)
 	}
 	check(err)
-	respond(req, http.StatusOK, header, body)
+	resp.Write(body)
 }
 
 func handleRequest(resp http.ResponseWriter, req *http.Request) {
@@ -196,21 +195,21 @@ func handleRequest(resp http.ResponseWriter, req *http.Request) {
 	relPath = path.Clean(relPath)
 	info, err := os.Stat(relPath)
 	if os.IsNotExist(err) {
-		respondWithError(req, http.StatusNotFound)
+		respondWithError(resp, req, http.StatusNotFound)
 		return
 	}
 	check(err)
 	switch mode := info.Mode(); {
 	case mode.IsRegular():
-		serveStaticFile(req, relPath)
+		serveStaticFile(resp, req, relPath)
 	case mode.IsDir():
 		if !hadFinalSlash {
-			respondWithRedirect(req, "/"+relPath+"/")
+			respondWithRedirect(resp, req, "/"+relPath+"/")
 			break
 		}
-		serveDir(req, relPath)
+		serveDir(resp, req, relPath)
 	default:
-		respondWithError(req, http.StatusBadRequest)
+		respondWithError(resp, req, http.StatusBadRequest)
 	}
 }
 
@@ -218,8 +217,17 @@ func serveStdinStdout() {
 	req, err := http.ReadRequest(bufio.NewReader(os.Stdin))
 	check(err)
 	handleRequest(stdoutResponseWriter{}, req)
+	writeResponseToStdout(req)
 }
 
 func main() {
-	serveStdinStdout()
+	var addr string
+	flag.StringVar(&addr, "b", "8080", "Bind address and port")
+	flag.Parse()
+	if addr == "-" {
+		serveStdinStdout()
+	} else {
+		http.HandleFunc("/", handleRequest)
+		http.ListenAndServe(addr, nil)
+	}
 }
