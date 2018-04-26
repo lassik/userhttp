@@ -66,10 +66,13 @@ func check(err error) {
 	}
 }
 
+func statusFromCode(statusCode int) string {
+	return fmt.Sprintf("%d %s", statusCode, http.StatusText(statusCode))
+}
+
 func respondWithError(resp http.ResponseWriter, req *http.Request, statusCode int) {
-	status := fmt.Sprintf("%d %s", statusCode, http.StatusText(statusCode))
 	buf := bytes.NewBuffer(nil)
-	check(errorTemplate.Execute(buf, status))
+	check(errorTemplate.Execute(buf, statusFromCode(statusCode)))
 	resp.Header().Set("Content-Type", "text/html; charset=utf-8")
 	resp.WriteHeader(statusCode)
 	resp.Write(buf.Bytes())
@@ -117,10 +120,8 @@ func (rw stdoutResponseWriter) Write(body []byte) (int, error) {
 }
 
 func writeResponseToStdout(req *http.Request) {
-	status := fmt.Sprintf("%d %s", responseStatusCode,
-		http.StatusText(responseStatusCode))
 	resp := http.Response{
-		Status:        status,
+		Status:        statusFromCode(responseStatusCode),
 		StatusCode:    responseStatusCode,
 		Proto:         "HTTP/1.1",
 		ProtoMajor:    1,
