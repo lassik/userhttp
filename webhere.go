@@ -100,36 +100,38 @@ func requireGetMethod(resp http.ResponseWriter, req *http.Request) bool {
 	return false
 }
 
-var responseStatusCode int = http.StatusOK
-var responseHeader = make(http.Header)
-var responseBody []byte
+var stdoutResponse struct {
+	statusCode int
+	header     http.Header
+	body       []byte
+}
 
 type stdoutResponseWriter struct{}
 
 func (rw stdoutResponseWriter) Header() http.Header {
-	return responseHeader
+	return stdoutResponse.header
 }
 
 func (rw stdoutResponseWriter) WriteHeader(statusCode int) {
-	responseStatusCode = statusCode
+	stdoutResponse.statusCode = statusCode
 }
 
 func (rw stdoutResponseWriter) Write(body []byte) (int, error) {
-	responseBody = append(responseBody, body...)
+	stdoutResponse.body = append(stdoutResponse.body, body...)
 	return len(body), nil
 }
 
 func writeResponseToStdout(req *http.Request) {
 	resp := http.Response{
-		Status:        statusFromCode(responseStatusCode),
-		StatusCode:    responseStatusCode,
+		Status:        statusFromCode(stdoutResponse.statusCode),
+		StatusCode:    stdoutResponse.statusCode,
 		Proto:         "HTTP/1.1",
 		ProtoMajor:    1,
 		ProtoMinor:    1,
-		Body:          ioutil.NopCloser(bytes.NewReader(responseBody)),
-		ContentLength: int64(len(responseBody)),
+		Body:          ioutil.NopCloser(bytes.NewReader(stdoutResponse.body)),
+		ContentLength: int64(len(stdoutResponse.body)),
 		Request:       req,
-		Header:        responseHeader,
+		Header:        stdoutResponse.header,
 	}
 	resp.Write(os.Stdout)
 }
@@ -218,6 +220,8 @@ func handleRequest(resp http.ResponseWriter, req *http.Request) {
 func serveStdinStdout() {
 	req, err := http.ReadRequest(bufio.NewReader(os.Stdin))
 	check(err)
+	stdoutResponse.statusCode = http.StatusOK
+	stdoutResponse.header = make(http.Header)
 	handleRequest(stdoutResponseWriter{}, req)
 	writeResponseToStdout(req)
 }
