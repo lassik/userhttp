@@ -189,10 +189,7 @@ func serveStaticFile(req *http.Request, relPath string) {
 	respond(req, http.StatusOK, header, body)
 }
 
-func main() {
-	reader := bufio.NewReader(os.Stdin)
-	req, err := http.ReadRequest(reader)
-	check(err)
+func handleRequest(resp http.ResponseWriter, req *http.Request) {
 	log.Printf("%s %s\n", req.Method, req.URL.Path)
 	hadFinalSlash := strings.HasSuffix(req.URL.Path, "/")
 	relPath := path.Join(".", req.URL.Path)
@@ -215,4 +212,14 @@ func main() {
 	default:
 		respondWithError(req, http.StatusBadRequest)
 	}
+}
+
+func serveStdinStdout() {
+	req, err := http.ReadRequest(bufio.NewReader(os.Stdin))
+	check(err)
+	handleRequest(stdoutResponseWriter{}, req)
+}
+
+func main() {
+	serveStdinStdout()
 }
