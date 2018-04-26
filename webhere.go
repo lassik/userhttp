@@ -108,15 +108,15 @@ var stdoutResponse struct {
 
 type stdoutResponseWriter struct{}
 
-func (rw stdoutResponseWriter) Header() http.Header {
+func (_ stdoutResponseWriter) Header() http.Header {
 	return stdoutResponse.header
 }
 
-func (rw stdoutResponseWriter) WriteHeader(statusCode int) {
+func (_ stdoutResponseWriter) WriteHeader(statusCode int) {
 	stdoutResponse.statusCode = statusCode
 }
 
-func (rw stdoutResponseWriter) Write(body []byte) (int, error) {
+func (_ stdoutResponseWriter) Write(body []byte) (int, error) {
 	stdoutResponse.body = append(stdoutResponse.body, body...)
 	return len(body), nil
 }
