@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"mime"
+	"net"
 	"net/http"
 	"net/http/cgi"
 	"os"
@@ -220,6 +221,14 @@ func serveStdinStdout() {
 	writeResponseToStdout(req)
 }
 
+func listenAndServeUnix(addr string, handler http.Handler) error {
+	unixListener, err := net.Listen("unix", addr)
+	if err != nil {
+		return err
+	}
+	return http.Serve(unixListener, handler)
+}
+
 func main() {
 	var addr string
 	flag.StringVar(&addr, "b", "8080", "Bind address and port")
@@ -228,6 +237,10 @@ func main() {
 		serveStdinStdout()
 	} else {
 		http.HandleFunc("/", handleRequest)
-		http.ListenAndServe(addr, nil)
+		if strings.Contains(addr, "/") {
+			check(listenAndServeUnix(addr, nil))
+		} else {
+			check(http.ListenAndServe(addr, nil))
+		}
 	}
 }
