@@ -217,11 +217,9 @@ func handleRequest(resp http.ResponseWriter, req *http.Request) {
 	}
 }
 
-type ourHandlerType struct{}
+type ourHandler struct{}
 
-var ourHandler ourHandlerType
-
-func (_ ourHandlerType) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
+func (_ ourHandler) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	handleRequest(resp, req)
 }
 
@@ -259,5 +257,5 @@ func main() {
 	}
 	check(err)
 	log.Print("Serving on ", listener.Addr())
-	check(http.Serve(listener, ourHandler))
+	check(http.Serve(listener, ourHandler{}))
 }
