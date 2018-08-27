@@ -147,6 +147,18 @@ func serveCgiScript(resp http.ResponseWriter, req *http.Request, relPath string)
 	cgiHandler.ServeHTTP(resp, req)
 }
 
+func serveStaticFile(resp http.ResponseWriter, req *http.Request, relPath string) {
+	if !requireGetMethod(resp, req) {
+		return
+	}
+	body, err := ioutil.ReadFile(relPath)
+	if type_ := mime.TypeByExtension(path.Ext(relPath)); type_ != "" {
+		resp.Header().Set("Content-Type", type_)
+	}
+	check(err)
+	resp.Write(body)
+}
+
 func serveDirList(resp http.ResponseWriter, req *http.Request, relPath string) {
 	if !requireGetMethod(resp, req) {
 		return
@@ -178,18 +190,6 @@ func serveDir(resp http.ResponseWriter, req *http.Request, relPath string) {
 		return
 	}
 	serveDirList(resp, req, relPath)
-}
-
-func serveStaticFile(resp http.ResponseWriter, req *http.Request, relPath string) {
-	if !requireGetMethod(resp, req) {
-		return
-	}
-	body, err := ioutil.ReadFile(relPath)
-	if type_ := mime.TypeByExtension(path.Ext(relPath)); type_ != "" {
-		resp.Header().Set("Content-Type", type_)
-	}
-	check(err)
-	resp.Write(body)
 }
 
 func handleRequest(resp http.ResponseWriter, req *http.Request) {
