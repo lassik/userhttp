@@ -203,16 +203,14 @@ func handleRequest(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 	check(err)
-	switch mode := info.Mode(); {
-	case mode.IsRegular():
+	mode := info.Mode()
+	if mode.IsRegular() {
 		serveStaticFile(resp, req, relPath)
-	case mode.IsDir():
-		if !hadFinalSlash {
-			respondWithRedirect(resp, req, "/"+relPath+"/")
-			break
-		}
-		serveDir(resp, req, relPath)
-	default:
+	} else if mode.IsDir() && hadFinalSlash {
+                serveDir(resp, req, relPath)
+        } else if mode.IsDir() {
+                respondWithRedirect(resp, req, "/"+relPath+"/")
+	} else {
 		respondWithError(resp, req, http.StatusBadRequest)
 	}
 }
