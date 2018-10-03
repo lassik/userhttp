@@ -232,7 +232,11 @@ func serveStdinStdout() {
 
 func main() {
 	var addr string
+	var certFile string
+	var keyFile string
 	flag.StringVar(&addr, "b", "", "Bind address and port")
+	flag.StringVar(&certFile, "crt", "", "HTTPS SSL certificate")
+	flag.StringVar(&keyFile, "key", "", "HTTPS SSL key")
 	flag.Parse()
 	if addr == "-" {
 		serveStdinStdout()
@@ -254,6 +258,14 @@ func main() {
 		listener, err = net.Listen("tcp", addr)
 	}
 	check(err)
-	log.Print("Serving on ", listener.Addr())
-	check(http.Serve(listener, ourHandler{}))
+	if (certFile != "") || (keyFile != "") {
+		if (certFile == "") || (keyFile == "") {
+			log.Fatal("Both -crt and -key must be given")
+		}
+		log.Print("Serving HTTPS (SSL) on ", listener.Addr())
+		check(http.ServeTLS(listener, ourHandler{}, certFile, keyFile))
+	} else {
+		log.Print("Serving HTTP on ", listener.Addr())
+		check(http.Serve(listener, ourHandler{}))
+	}
 }
