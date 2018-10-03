@@ -207,9 +207,9 @@ func handleRequest(resp http.ResponseWriter, req *http.Request) {
 	if mode.IsRegular() {
 		serveStaticFile(resp, req, relPath)
 	} else if mode.IsDir() && hadFinalSlash {
-                serveDir(resp, req, relPath)
-        } else if mode.IsDir() {
-                respondWithRedirect(resp, req, "/"+relPath+"/")
+		serveDir(resp, req, relPath)
+	} else if mode.IsDir() {
+		respondWithRedirect(resp, req, "/"+relPath+"/")
 	} else {
 		respondWithError(resp, req, http.StatusBadRequest)
 	}
